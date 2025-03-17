@@ -1,5 +1,6 @@
 
 import http.server
+import socket
 import socketserver
 import os
 import urllib.parse
@@ -7,6 +8,9 @@ import json
 from datetime import datetime
 
 PORT = 3000
+SOCKET_HOST = 'message-processor'
+SOCKET_HOST = 'localhost'
+SOCKET_PORT = 5000
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "./static")
 
 class WebHandler(http.server.SimpleHTTPRequestHandler):
@@ -34,8 +38,55 @@ class WebHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(404)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
-            self.wfile.write(b'404 Not Found')
+            with open(os.path.join(STATIC_DIR, 'error.html'), 'rb') as f:
+                self.wfile.write(f.read())
     
+    def do_POST(self):
+        if self.path != '/message':
+            self.send_response(404)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            with open(os.path.join(STATIC_DIR, 'error.html'), 'rb') as f:
+                self.wfile.write(f.read())
+            return
+        
+        content_length = int(self.headers['Content-Length'])
+        post_data = self.rfile.read(content_length).decode('utf-8')
+        form_data = urllib.parse.parse_qs(post_data)
+            
+        username = form_data.get('username', [''])[0]
+        message = form_data.get('message', [''])[0]
+        
+        if not (username and message):
+            self.send_response(400)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b'Bad Request: Username and message are required')
+            return
+        
+        try:
+            json_data = json.dumps({
+                'username': username,
+                'message': message,
+                'date': datetime.now().isoformat()
+            })
+            with socket.socket() as s:
+                s.connect((SOCKET_HOST, SOCKET_PORT))
+                s.sendall(json_data.encode('utf-8'))
+                print(f'Data sent to server: {json_data}')
+                
+        except Exception as e:
+            print(f'Error: {e}')
+            self.send_response(500)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            self.wfile.write(b'Internal Server Error')
+            return
+        
+        # Redirect back to the form
+        self.send_response(303)  # See Other
+        self.send_header('Location', '/message.html')
+        self.end_headers()
 
 def run_server():
     with socketserver.TCPServer(("", PORT), WebHandler) as httpd:
