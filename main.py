@@ -8,9 +8,12 @@ import json
 from datetime import datetime
 import socket
 
+from pymongo import MongoClient
+
 PORT = 3000
 SOCKET_HOST = 'localhost'
 SOCKET_PORT = 5000
+MONGO_URI = "mongodb://mongo:27017"
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "./static")
 
 class WebHandler(http.server.SimpleHTTPRequestHandler):
@@ -94,6 +97,9 @@ def run_server():
         httpd.serve_forever()
 
 def start_socket_server():
+    client = MongoClient(MONGO_URI)
+    db = client.simple_app
+        
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('', 5000))
@@ -107,6 +113,12 @@ def start_socket_server():
         
         record = json.loads(data.decode('utf-8'))
         print("Data received", record)
+        
+        try:
+            result = db.messages.insert_one(record)
+            print("Data saved to MongoDB", result.inserted_id)
+        except Exception as e:
+            print(f'Error: {e}')
         
 
     conn.close()
