@@ -1,0 +1,16 @@
+
+services:
+  app:
+    build: .
+    ports:
+      - 3000:3000
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongo_volume:/data/db
+  
+volumes:
+  mongo_volume:
