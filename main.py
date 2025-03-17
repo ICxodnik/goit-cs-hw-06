@@ -78,10 +78,9 @@ class WebHandler(http.server.SimpleHTTPRequestHandler):
                 'message': message,
                 'date': datetime.now().isoformat()
             })
-            with socket.socket() as s:
-                s.connect((SOCKET_HOST, SOCKET_PORT))
-                s.sendall(json_data.encode('utf-8'))
-                print(f'Data sent to server: {json_data}')
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+                sock.sendto(json_data.encode('utf-8'), (SOCKET_HOST, SOCKET_PORT))
+            logging.info(f'Data sent to server: {json_data}')
                 
         except Exception as e:
             logging.error(f'Error processing POST request: {e}')
@@ -108,16 +107,12 @@ def start_socket_server():
     client = MongoClient(MONGO_URI)
     db = client.simple_app
         
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     sock.bind(('', 5000))
-    sock.listen(1)
-    conn, addr = sock.accept()
-
+    
     while True:
-        data = conn.recv(1024 * 10)
-        if not data:
-            break
+        data, _ = sock.recvfrom(1024 * 10)
         
         record = json.loads(data.decode('utf-8'))
         logging.info(f"Data received: {record}")
