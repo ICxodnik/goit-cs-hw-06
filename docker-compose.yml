@@ -3,6 +3,8 @@ services:
   app:
     build: .
     init: true
+    environment:
+      - PYTHONUNBUFFERED=1
     ports:
       - 3000:3000
     depends_on:
