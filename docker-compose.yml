@@ -2,6 +2,7 @@
 services:
   app:
     build: .
+    init: true
     ports:
       - 3000:3000
     depends_on:
